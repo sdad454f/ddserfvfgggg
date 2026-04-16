@@ -18,6 +18,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile.backup
+          file: ./Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/mysql-rclone-backup:1.0.0
