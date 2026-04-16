@@ -39,10 +39,12 @@ jobs:
             --single-transaction --quick --skip-extended-insert --complete-insert \
             --set-gtid-purged=OFF \
             --default-character-set=utf8mb4 \
+            --column-statistics=0 \
             -h${{ secrets.DB_HOST }} -P${{ secrets.DB_PORT }} \
             -u${{ secrets.DB_USER }} -p"$DB_PASSWORD" \
             --ssl-mode=DISABLED \
             --databases ${{ secrets.DB_DATA }} \
+            2>/dev/null \
             | gzip > latest_backup.sql.gz 2>/dev/null
 
           if [ $? -ne 0 ]; then
