@@ -1,0 +1,90 @@
+name: Secure DB Backup to R2
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 每天凌晨 2 点执行
+  workflow_dispatch:      # 允许手动强制触发备份
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Tools
+        # 安装 mysql 客户端和 rclone 同步工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client rclone
+
+      - name: Configure R2
+        # 生成 rclone 配置文件，不写入日志
+        run: |
+          mkdir -p ~/.config/rclone
+          cat <<EOF > ~/.config/rclone/rclone.conf
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          endpoint = ${{ secrets.R2_ENDPOINT }}
+          acl = private
+          EOF
+
+      - name: Execute Backup and Verify
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          # 开启管道错误检测：只要 mysqldump 崩了，整个脚本立即报错
+          set -o pipefail
+
+          echo "Starting dump..."
+          
+          # 1. 导出、压缩、写入文件
+          mysqldump \
+            --single-transaction --quick --skip-extended-insert --complete-insert --set-gtid-purged=OFF \
+            --default-character-set=utf8mb4 \
+            --net-buffer-length=16384 --max-allowed-packet=512M \
+            -h${{ secrets.DB_HOST }} -P${{ secrets.DB_PORT }} -u${{ secrets.DB_USER }} \
+            -p"$DB_PASSWORD" --ssl-mode=DISABLED \
+            --databases defaultdb | gzip > latest_backup.sql.gz
+          
+          DUMP_STATUS=$?
+
+          # 2. 逻辑严谨性校验
+          echo "Verifying backup integrity..."
+
+          # 校验退出码
+          if [ $DUMP_STATUS -ne 0 ]; then
+            echo "Error: mysqldump failed with exit code $DUMP_STATUS"
+            exit 1
+          fi
+
+          # 校验文件大小 (必须大于 10KB)
+          FILE_SIZE=$(stat -c%s "latest_backup.sql.gz")
+          if [ "$FILE_SIZE" -lt 10240 ]; then
+            echo "Error: Backup file is too small ($FILE_SIZE bytes). Suspected failure."
+            exit 1
+          fi
+
+          # 校验内容完整性 (检查 gzip 流末尾是否有完成标志)
+          if ! zcat latest_backup.sql.gz | tail -n 10 | grep -q "Dump completed"; then
+            echo "Error: 'Dump completed' mark not found. Backup is truncated."
+            exit 1
+          fi
+
+          echo "Verification passed. File size: $FILE_SIZE bytes."
+
+          # 3. 只有通过校验才上传覆盖
+          # --checksum 确保数据一致性，-q 隐藏进度日志保护安全
+          rclone copy latest_backup.sql.gz r2:${{ secrets.R2_BUCKET }}/ \
+            --s3-no-check-bucket \
+            --checksum \
+            -q
+          
+          echo "Successfully uploaded to R2."
+
+      - name: Cleanup Secrets
+        if: always()
+        # 无论成功失败，必须清除本地配置和临时备份文件
+        run: |
+          rm -rf ~/.config/rclone/
+          rm -f latest_backup.sql.gz
