@@ -2,7 +2,7 @@ name: Secure DB Backup to R2
 
 on:
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 */4 * * *'
   workflow_dispatch:
 
 jobs:
