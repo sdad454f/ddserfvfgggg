@@ -12,8 +12,8 @@ jobs:
     steps:
       - name: Install Tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y default-mysql-client rclone
+          sudo apt-get update -qq >/dev/null 2>&1
+          sudo apt-get install -y default-mysql-client rclone >/dev/null 2>&1
 
       - name: Configure R2
         run: |
@@ -33,8 +33,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           set -o pipefail
-
-          echo "Starting dump..."
+          set +x
 
           mysqldump \
             --single-transaction --quick --skip-extended-insert --complete-insert \
@@ -44,29 +43,34 @@ jobs:
             -u${{ secrets.DB_USER }} -p"$DB_PASSWORD" \
             --ssl-mode=DISABLED \
             --databases ${{ secrets.DB_DATA }} \
-            | gzip > latest_backup.sql.gz
+            | gzip > latest_backup.sql.gz 2>/dev/null
 
           if [ $? -ne 0 ]; then
-            echo "mysqldump failed"
+            echo "Error"
             exit 1
           fi
 
           FILE_SIZE=$(stat -c%s latest_backup.sql.gz)
           if [ "$FILE_SIZE" -lt 10240 ]; then
-            echo "Backup too small ($FILE_SIZE bytes)"
+            echo "Error"
             exit 1
           fi
 
-          echo "Backup OK, size: $FILE_SIZE bytes"
-
       - name: Upload to R2
         run: |
+          set +x
           rclone copy latest_backup.sql.gz r2:${{ secrets.R2_BUCKET }}/ \
-            --s3-no-check-bucket --checksum -q
-          echo "Uploaded to R2"
+            --s3-no-check-bucket --checksum -q >/dev/null 2>&1
+
+          if [ $? -ne 0 ]; then
+            echo "Error"
+            exit 1
+          fi
+
+          echo "Success"
 
       - name: Cleanup
         if: always()
         run: |
-          rm -rf ~/.config/rclone
-          rm -f latest_backup.sql.gz
+          rm -rf ~/.config/rclone >/dev/null 2>&1
+          rm -f latest_backup.sql.gz >/dev/null 2>&1
