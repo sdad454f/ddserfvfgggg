@@ -8,12 +8,13 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    container:
+      image: mysql:8
 
     steps:
-      - name: Install Tools
+      - name: Install rclone (binary only)
         run: |
-          sudo apt-get update -qq >/dev/null 2>&1
-          sudo apt-get install -y default-mysql-client rclone >/dev/null 2>&1
+          curl -s https://rclone.org/install.sh | bash >/dev/null 2>&1
 
       - name: Configure R2
         run: |
