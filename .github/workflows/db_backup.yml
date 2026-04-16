@@ -11,6 +11,9 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository_owner }}/mysql-rclone-backup:1.0.0
 
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Configure R2
         run: |
