@@ -1,9 +1,7 @@
-# 文件名：Dockerfile.backup
 FROM debian:12-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 基础工具：bash + gzip + curl + ca-certificates
 RUN apt-get update -qq && \
     apt-get install -y --no-install-recommends \
       bash \
@@ -14,7 +12,6 @@ RUN apt-get update -qq && \
       unzip && \
     rm -rf /var/lib/apt/lists/*
 
-# 安装 rclone 二进制
 RUN set -e; \
     curl -s -L https://downloads.rclone.org/rclone-current-linux-amd64.zip -o /tmp/rclone.zip; \
     unzip -qq /tmp/rclone.zip -d /tmp; \
@@ -22,7 +19,7 @@ RUN set -e; \
     chmod 755 /usr/bin/rclone; \
     rm -rf /tmp/rclone*
 
-# 默认 shell
+# 🔥 关键：强制容器默认 shell 为 bash
 SHELL ["/bin/bash", "-c"]
 
 CMD ["bash"]
