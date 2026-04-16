@@ -29,8 +29,6 @@ jobs:
           EOF
 
       - name: Dump & Verify
-        env:
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           set -o pipefail
           set +x
@@ -41,7 +39,7 @@ jobs:
             --default-character-set=utf8mb4 \
             --column-statistics=0 \
             -h${{ secrets.DB_HOST }} -P${{ secrets.DB_PORT }} \
-            -u${{ secrets.DB_USER }} -p"$DB_PASSWORD" \
+            -u${{ secrets.DB_USER }} -p"${{ secrets.DB_PASSWORD }}" \
             --ssl-mode=DISABLED \
             --databases ${{ secrets.DB_DATA }} \
             2>/dev/null \
