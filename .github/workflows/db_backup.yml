@@ -45,7 +45,7 @@ jobs:
             --net-buffer-length=16384 --max-allowed-packet=512M \
             -h${{ secrets.DB_HOST }} -P${{ secrets.DB_PORT }} -u${{ secrets.DB_USER }} \
             -p"$DB_PASSWORD" --ssl-mode=DISABLED \
-            --databases defaultdb | gzip > latest_backup.sql.gz
+            --databases "${DB_DATA}" | gzip > latest_backup.sql.gz
           
           DUMP_STATUS=$?
 
