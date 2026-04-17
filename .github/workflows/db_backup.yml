@@ -11,6 +11,9 @@ jobs:
     permissions:
       contents: write        # 必须！允许 action 推送 commit
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
       - name: Install Tools
         run: |
           sudo apt-get update -qq >/dev/null 2>&1
@@ -77,8 +80,6 @@ jobs:
           rm -f latest_backup.sql.gz >/dev/null 2>&1
       - name: Create keep-alive commit
         run: |
-          echo "# Keep-alive commit" >> keepalive.md 2>/dev/null || true
-          echo "" >> keepalive.md
           echo "Last backup: $(date -u '+%Y-%m-%d %H:%M:%S UTC') | ID: $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)" > keepalive.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
